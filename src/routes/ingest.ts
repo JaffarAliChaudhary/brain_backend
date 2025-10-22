@@ -1,11 +1,28 @@
-import express from "express";
+import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import OpenAI from "openai";
 
-export const ingestRouter = express.Router();
+export const ingestRouter = Router();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
-ingestRouter.post("/", async (req, res) => {
+// Define payload structure for type safety
+interface Participant {
+  name: string;
+  email: string;
+  role?: string | null;
+}
+
+interface IngestRequest {
+  transcript_id: string;
+  title: string;
+  occurred_at: string;
+  duration_minutes: number;
+  participants?: Participant[];
+  transcript: string;
+  metadata?: Record<string, any>;
+}
+
+ingestRouter.post("/", async (req: Request<{}, {}, IngestRequest>, res: Response): Promise<void> => {
   try {
     const { transcript_id, title, occurred_at, duration_minutes, participants, transcript, metadata } = req.body;
 
@@ -31,85 +48,60 @@ ingestRouter.post("/", async (req, res) => {
     let content = extractionResponse.choices[0].message?.content || "{}";
     content = content.replace(/```json|```/g, "").trim();
 
-    let extracted: any;
+    let extracted: { topics?: string[]; action_items?: string[]; decisions?: string[]; sentiment?: string } = {};
     try {
       extracted = JSON.parse(content);
     } catch {
-      console.error(" Failed to parse JSON:", content);
-      extracted = {};
+      console.error("Failed to parse JSON:", content);
     }
 
-    // Store or update transcript if it already exists
-    let newTranscript;
+    // Check for existing transcript
+    const existingTranscript = await prisma.transcript.findUnique({ where: { transcript_id } });
+    if (existingTranscript) {
+      res.status(200).json({ id: existingTranscript.id, status: "already_exists" });
+      return;
+    }
 
-    const existingTranscript = await prisma.transcript.findUnique({
-      where: { transcript_id },
+    // Create new transcript
+    const newTranscript = await prisma.transcript.create({
+      data: {
+        transcript_id,
+        title,
+        occurred_at: new Date(occurred_at),
+        duration_minutes,
+        transcript,
+        sentiment: extracted.sentiment || "neutral",
+        metadata: metadata ?? {},
+        topics: { create: (extracted.topics || []).map((t) => ({ name: t })) },
+        actions: { create: (extracted.action_items || []).map((a) => ({ text: a })) },
+        decisions: { create: (extracted.decisions || []).map((d) => ({ text: d })) },
+      },
     });
 
-    if (existingTranscript) {
-      res.json({ id: existingTranscript.id, status: "already_exists" });
-      return;
-    } else {
-      newTranscript = await prisma.transcript.create({
-        data: {
-          transcript_id,
-          title,
-          occurred_at: new Date(occurred_at),
-          duration_minutes,
-          transcript,
-          sentiment: extracted.sentiment || "neutral",
-          metadata,
-          topics: { create: (extracted.topics || []).map((t: string) => ({ name: t })) },
-          actions: { create: (extracted.action_items || []).map((a: string) => ({ text: a })) },
-          decisions: { create: (extracted.decisions || []).map((d: string) => ({ text: d })) },
-        },
-      });
-    }
-
-
-    //  Store participants (deduplicate by email)
-    if (participants && participants.length > 0) {
+    // Store participants (deduplicate by email)
+    if (participants?.length) {
       for (const p of participants) {
-        // Check if participant already exists by email
-        let existing = await prisma.participant.findUnique({
-          where: { email: p.email },
-        });
-
-        // Create if new
+        let existing = await prisma.participant.findUnique({ where: { email: p.email } });
         if (!existing) {
           existing = await prisma.participant.create({
-            data: {
-              name: p.name,
-              email: p.email,
-              role: p.role || null,
-            },
+            data: { name: p.name, email: p.email, role: p.role || null },
           });
         }
-
-        // Link participant to this transcript
         await prisma.participantOnTranscript.create({
-          data: {
-            participantId: existing.id,
-            transcriptId: newTranscript.id,
-          },
+          data: { participantId: existing.id, transcriptId: newTranscript.id },
         });
       }
     }
 
-
-    // Generate embedding for semantic search
+    // Generate embeddings
     const embeddingResponse = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: transcript,
     });
 
     const vector = embeddingResponse.data[0].embedding;
-
     await prisma.embedding.create({
-      data: {
-        vector: JSON.stringify(vector),
-        transcriptId: newTranscript.id,
-      },
+      data: { vector: JSON.stringify(vector), transcriptId: newTranscript.id },
     });
 
     // Summarization
@@ -129,15 +121,14 @@ ingestRouter.post("/", async (req, res) => {
 
     const summaryText = summaryResponse.choices[0].message?.content?.trim() || null;
 
-    // Save summary
     await prisma.transcript.update({
       where: { id: newTranscript.id },
       data: { summary: summaryText },
     });
 
-    console.log(`Ingested + embedded + summarized: ${newTranscript.title}`);
+    console.log(`Ingested, embedded & summarized: ${newTranscript.title}`);
 
-    res.json({
+    res.status(200).json({
       id: newTranscript.id,
       status: "processed",
       extracted,
@@ -148,6 +139,7 @@ ingestRouter.post("/", async (req, res) => {
     res.status(500).json({ error: "Failed to process transcript" });
   }
 });
+
 
 
 

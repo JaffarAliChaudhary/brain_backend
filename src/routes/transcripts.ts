@@ -1,22 +1,52 @@
-import express from "express";
+import { Router, Request, Response } from "express";
 import { prisma } from "../db";
-export const transcriptRouter = express.Router();
 
-transcriptRouter.get("/", async (_, res) => {
-  const transcripts = await prisma.transcript.findMany({
-    include: { topics: true, actions: true, decisions: true, participants: true },
-  });
-  res.json(transcripts);
+export const transcriptRouter = Router();
+
+transcriptRouter.get("/", async (_: Request, res: Response): Promise<void> => {
+  try {
+    const transcripts = await prisma.transcript.findMany({
+      include: {
+        topics: true,
+        actions: true,
+        decisions: true,
+        participants: true,
+      },
+    });
+    res.status(200).json(transcripts);
+  } catch (error) {
+    console.error("Error fetching transcripts:", error);
+    res.status(500).json({ error: "Failed to fetch transcripts" });
+  }
 });
 
-transcriptRouter.get("/:id", async (req, res) => {
-  const { id } = req.params;
-  const transcript = await prisma.transcript.findUnique({
-    where: { id },
-    include: { topics: true, actions: true, decisions: true, participants: true },
-  });
-  res.json(transcript);
+
+transcriptRouter.get("/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const transcript = await prisma.transcript.findUnique({
+      where: { id },
+      include: {
+        topics: true,
+        actions: true,
+        decisions: true,
+        participants: true,
+      },
+    });
+
+    if (!transcript) {
+      res.status(404).json({ error: "Transcript not found" });
+      return;
+    }
+
+    res.status(200).json(transcript);
+  } catch (error) {
+    console.error("Error fetching transcript:", error);
+    res.status(500).json({ error: "Failed to fetch transcript" });
+  }
 });
+
 
 
 /**

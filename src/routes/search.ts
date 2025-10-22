@@ -1,29 +1,46 @@
-import express from "express";
+import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import OpenAI from "openai";
 import { cosineSimilarity } from "../utils/cosine";
 
-export const searchRouter = express.Router();
+export const searchRouter = Router();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
-searchRouter.get("/", async (req, res) => {
-  const query = req.query.q as string;
-  if (!query) return res.status(400).json({ error: "Missing ?q=" });
+searchRouter.get("/", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const query = req.query.q as string;
+    if (!query) {
+      res.status(400).json({ error: "Missing ?q=" });
+      return;
+    }
 
-  const queryEmbedding = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    input: query,
-  });
-  const qVec = queryEmbedding.data[0].embedding;
+    // Generate embedding for the search query
+    const queryEmbedding = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: query,
+    });
+    const qVec = queryEmbedding.data[0].embedding;
 
-  const all = await prisma.embedding.findMany({ include: { Transcript: true } });
-  const scored = all.map(e => ({
-    transcript: e.Transcript,
-    score: cosineSimilarity(qVec, JSON.parse(e.vector)),
-  }));
-  scored.sort((a, b) => b.score - a.score);
-  res.json(scored.slice(0, 5));
+    // Fetch all stored embeddings
+    const allEmbeddings = await prisma.embedding.findMany({
+      include: { Transcript: true },
+    });
+
+    // Compute cosine similarity scores
+    const scored = allEmbeddings.map((e) => ({
+      transcript: e.Transcript,
+      score: cosineSimilarity(qVec, JSON.parse(e.vector)),
+    }));
+
+    // Sort and return top 5 matches
+    scored.sort((a, b) => b.score - a.score);
+    res.status(200).json(scored.slice(0, 5));
+  } catch (error) {
+    console.error("Search error:", error);
+    res.status(500).json({ error: "Failed to perform semantic search" });
+  }
 });
+
 
 
 /**

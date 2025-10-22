@@ -24,7 +24,7 @@ describe("POST /api/ingest", () => {
         { name: "Sarah Chen", email: "sarah@acme.com", role: "listener" },
       ],
       transcript: "We discussed sales growth and team expansion plans.",
-      metadata: { platform: "zoom" },
+      metadata: { platform: "zoom", recording_url: "https://zoom.us/rec/play/example" },
     };
 
     const res = await request(app)

@@ -1,20 +1,21 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 
 export const graphRouter = Router();
 
-graphRouter.get("/connections", async (req, res) => {
+
+graphRouter.get("/connections", async (_: Request, res: Response): Promise<void> => {
   try {
     const participants = await prisma.participant.findMany({
       include: {
         meetings: {
           include: {
             Transcript: {
-              include: { topics: true }
-            }
-          }
-        }
-      }
+              include: { topics: true },
+            },
+          },
+        },
+      },
     });
 
     const connections = participants.map((p) => {
@@ -28,18 +29,19 @@ graphRouter.get("/connections", async (req, res) => {
 
       return {
         person: p.name,
-        organization: p.email.split("@")[1] || "Unknown",
+        organization: p.email?.split("@")[1] || "Unknown",
         topics: Array.from(topics),
-        interaction_count: interactionCount
+        interaction_count: interactionCount,
       };
     });
 
-    res.json({ connections });
+    res.status(200).json({ connections });
   } catch (error) {
-    console.error(error);
+    console.error("Error generating graph insights:", error);
     res.status(500).json({ error: "Failed to generate graph insights" });
   }
 });
+
 
 /**
  * @swagger
