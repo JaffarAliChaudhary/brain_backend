@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  //output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model Transcript {
+  id              String       @id @default(cuid())
+  transcript_id   String       @unique
+  title           String
+  occurred_at     DateTime
+  duration_minutes Int
+  transcript      String
+  sentiment       String?
+  summary         String?
+  metadata        Json
+  topics          Topic[]
+  actions         ActionItem[]
+  decisions       Decision[]
+  participants    ParticipantOnTranscript[]
+  embedding       Embedding?
+  createdAt       DateTime @default(now())
+}
+
+model Participant {
+  id       String   @id @default(cuid())
+  name     String
+  email    String   @unique
+  role     String?
+  meetings ParticipantOnTranscript[]
+}
+
+model ParticipantOnTranscript {
+  participantId String
+  transcriptId  String
+  Participant   Participant @relation(fields: [participantId], references: [id])
+  Transcript    Transcript  @relation(fields: [transcriptId], references: [id])
+  @@id([participantId, transcriptId])
+}
+
+model Topic {
+  id           String   @id @default(cuid())
+  name         String
+  transcriptId String
+  Transcript   Transcript @relation(fields: [transcriptId], references: [id])
+}
+
+model ActionItem {
+  id           String   @id @default(cuid())
+  text         String
+  transcriptId String
+  Transcript   Transcript @relation(fields: [transcriptId], references: [id])
+}
+
+model Decision {
+  id           String   @id @default(cuid())
+  text         String
+  transcriptId String
+  Transcript   Transcript @relation(fields: [transcriptId], references: [id])
+}
+
+model Embedding {
+  id           String   @id @default(cuid())
+  vector       String   // store JSON array of numbers
+  transcriptId String   @unique
+  Transcript   Transcript @relation(fields: [transcriptId], references: [id])
+}
