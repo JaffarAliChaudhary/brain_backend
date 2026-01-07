@@ -6,6 +6,7 @@ import morgan from "morgan";
 import type MessageResponse from "./interfaces/message-response.js";
 
 import api from "./api/index.js";
+import routes from "./index.js"
 import * as middlewares from "./middlewares.js";
 
 const app = express();
@@ -22,6 +23,7 @@ app.get<object, MessageResponse>("/", (req, res) => {
 });
 
 app.use("/api/v1", api);
+app.use("/routes/", routes);
 
 app.use(middlewares.notFound);
 app.use(middlewares.errorHandler);
