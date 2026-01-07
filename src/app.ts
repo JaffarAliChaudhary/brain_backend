@@ -3,17 +3,14 @@ import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 
-import { ingestRouter } from "./routes/ingest";
-import { transcriptRouter } from "./routes/transcripts";
-import { analyticsRouter } from "./routes/analytics";
-import { searchRouter } from "./routes/search";
-import { graphRouter } from "./routes/graph";
-import { setupSwagger } from "./swagger";
-import * as middlewares from "./middlewares";
+import type MessageResponse from "./interfaces/message-response.js";
+
+import api from "./api/index.js";
+import { setupSwagger } from "./swagger.js";
+import * as middlewares from "./middlewares.js";
 
 const app = express();
 
-// core middleware (ONCE)
 app.use(morgan("dev"));
 app.use(helmet());
 app.use(
@@ -25,33 +22,14 @@ app.use(
 );
 app.use(express.json());
 
-// root
-app.get("/", (_, res) => {
+app.get<object, MessageResponse>("/", (req, res) => {
   res.json({
     message: "🦄🌈✨👋🌎🌍🌏✨🌈🦄",
   });
 });
 
-// health
-app.get("/health", (_, res) => {
-  res.status(200).json({
-    status: "ok",
-    message: "Brain backend is running smoothly",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// API routes (NO /api here)
-app.use("/ingest", ingestRouter);
-app.use("/transcripts", transcriptRouter);
-app.use("/analytics", analyticsRouter);
-app.use("/search", searchRouter);
-app.use("/graph", graphRouter);
-
-// swagger
+app.use("/api/v1", api);
 setupSwagger(app);
-
-// errors
 app.use(middlewares.notFound);
 app.use(middlewares.errorHandler);
 
