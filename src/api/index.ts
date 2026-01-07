@@ -19,11 +19,11 @@ router.get<object, MessageResponse>("/", (req, res) => {
 });
 
 router.use("/emojis", emojis);
-router.use("/api/ingest", ingestRouter);
-router.use("/api/transcripts", transcriptRouter);
-router.use("/api/analytics", analyticsRouter);
-router.use("/api/search", searchRouter);
-router.use("/api/graph", graphRouter);
+router.use("/ingest", ingestRouter);
+router.use("/transcripts", transcriptRouter);
+router.use("/analytics", analyticsRouter);
+router.use("/search", searchRouter);
+router.use("/graph", graphRouter);
 
 
 export default router;
