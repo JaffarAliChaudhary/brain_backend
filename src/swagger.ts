@@ -42,12 +42,12 @@ const options = {
       version: "1.0.0",
       description: "API documentation for the Knowledge Extraction service",
     },
-    servers: [
-      {
-        url: "https://brain-backend-vaow.vercel.app/api",
-        description: "Production",
-      },
-    ],
+    // servers: [
+    //   {
+    //     url: "https://brain-backend-vaow.vercel.app/api",
+    //     description: "Production",
+    //   },
+    // ],
   },
   apis: ["./src/routes/*.ts"],
 };

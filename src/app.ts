@@ -7,6 +7,7 @@ import type MessageResponse from "./interfaces/message-response.js";
 
 import api from "./api/index.js";
 import * as middlewares from "./middlewares.js";
+import { setupSwagger } from "./swagger";
 
 const app = express();
 
@@ -22,7 +23,7 @@ app.get<object, MessageResponse>("/", (req, res) => {
 });
 
 app.use("/api/v1", api);
-
+setupSwagger(app);
 app.use(middlewares.notFound);
 app.use(middlewares.errorHandler);
 
