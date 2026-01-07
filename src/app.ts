@@ -6,20 +6,13 @@ import morgan from "morgan";
 import type MessageResponse from "./interfaces/message-response.js";
 
 import api from "./api/index.js";
-import { setupSwagger } from "./swagger.js";
 import * as middlewares from "./middlewares.js";
 
 const app = express();
 
 app.use(morgan("dev"));
 app.use(helmet());
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use(cors());
 app.use(express.json());
 
 app.get<object, MessageResponse>("/", (req, res) => {
@@ -29,7 +22,7 @@ app.get<object, MessageResponse>("/", (req, res) => {
 });
 
 app.use("/api/v1", api);
-setupSwagger(app);
+
 app.use(middlewares.notFound);
 app.use(middlewares.errorHandler);
 
