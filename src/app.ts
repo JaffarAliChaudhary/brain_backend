@@ -2,36 +2,20 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+
 import { ingestRouter } from "./routes/ingest";
 import { transcriptRouter } from "./routes/transcripts";
 import { analyticsRouter } from "./routes/analytics";
 import { searchRouter } from "./routes/search";
 import { graphRouter } from "./routes/graph";
 import { setupSwagger } from "./swagger";
-
-
-import type MessageResponse from "./interfaces/message-response.js";
-
-import api from "./api/index.js";
-// import routes from "./index.js"
-import * as middlewares from "./middlewares.js";
+import * as middlewares from "./middlewares";
 
 const app = express();
 
+// core middleware (ONCE)
 app.use(morgan("dev"));
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
-
-app.get<object, MessageResponse>("/", (req, res) => {
-  res.json({
-    message: "🦄🌈✨👋🌎🌍🌏✨🌈🦄",
-  });
-});
-
-app.use("/api/v1", api);
-// app.use("/api/v1", routes);
-// app.use("/routes", routes);
 app.use(
   cors({
     origin: "*",
@@ -39,10 +23,16 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
 app.use(express.json());
 
-// Health check
+// root
+app.get("/", (_, res) => {
+  res.json({
+    message: "🦄🌈✨👋🌎🌍🌏✨🌈🦄",
+  });
+});
+
+// health
 app.get("/health", (_, res) => {
   res.status(200).json({
     status: "ok",
@@ -51,16 +41,17 @@ app.get("/health", (_, res) => {
   });
 });
 
-// API routes
+// API routes (NO /api here)
 app.use("/ingest", ingestRouter);
 app.use("/transcripts", transcriptRouter);
 app.use("/analytics", analyticsRouter);
 app.use("/search", searchRouter);
 app.use("/graph", graphRouter);
 
-// Swagger
+// swagger
 setupSwagger(app);
 
+// errors
 app.use(middlewares.notFound);
 app.use(middlewares.errorHandler);
 
