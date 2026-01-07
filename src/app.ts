@@ -22,8 +22,9 @@ app.get<object, MessageResponse>("/", (req, res) => {
   });
 });
 
-app.use("/api/v1", api);
-app.use("/routes/", routes);
+// app.use("/api/v1", api);
+app.use("/api/v1", routes);
+// app.use("/routes", routes);
 
 app.use(middlewares.notFound);
 app.use(middlewares.errorHandler);
